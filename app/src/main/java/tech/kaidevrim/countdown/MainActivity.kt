@@ -1,7 +1,6 @@
 package tech.kaidevrim.countdown
 
 import android.app.DatePickerDialog
-import android.app.TimePickerDialog
 import android.os.Bundle
 import android.widget.DatePicker
 import androidx.activity.ComponentActivity
@@ -9,13 +8,14 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
@@ -24,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,7 +43,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    SelectDateTimeMenu()
+                    MainMenu()
                 }
             }
         }
@@ -54,27 +53,29 @@ class MainActivity : ComponentActivity() {
 var daysDiff: Int = 0
 
 @Composable
-fun SelectDateTimeMenu() {
+fun MainMenu() {
     val formattedDateState = remember { mutableStateOf("") }
     val daysLeft = remember { mutableStateOf("") }
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(horizontalArrangement = Arrangement.Center) {
+    val incorrectDate = remember {mutableStateOf(false)}
+    if (incorrectDate.value) {
+        SimpleAlertDialog(incorrectDate)
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(20.dp)) {
             ShowDatePicker(formattedDateState)
         }
-        Row(horizontalArrangement = Arrangement.Center) {
-            Spacer(modifier = Modifier.padding(10.dp))
-        }
-        Row(horizontalArrangement = Arrangement.Center) {
-            ShowTimePicker()
-        }
-        Spacer(modifier = Modifier.padding(10.dp))
-
         if (formattedDateState.value != "") {
-            Button(onClick = { calculateDaysLeft(formattedDateState.value, daysLeft) }) {
+            Button(onClick = { calculateDaysLeft(formattedDateState.value, daysLeft, incorrectDate) }) {
                 Text(text = "Calculate Days Left")
             }
-            Row(horizontalArrangement = Arrangement.Center) {
-                Text(text = "Days left: ${daysLeft.value}")
+            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 100.dp)) {
+                Text(text = daysLeft.value, fontSize = 80.sp)
+            }
+            Row {
+                Text(text = "Days left")
             }
         }
     }
@@ -84,7 +85,7 @@ fun SelectDateTimeMenu() {
 @Composable
 fun GreetingPreview() {
     CountdownTheme {
-        SelectDateTimeMenu()
+        MainMenu()
     }
 }
 
@@ -100,10 +101,10 @@ fun ShowDatePicker(formattedDateState: MutableState<String>) {
     val datePickerDialog = DatePickerDialog(
         mContext,
         { _: DatePicker, fYear: Int, fMonth: Int, fDay: Int ->
-            if (fMonth+1 <= 10) {
-                formattedDateState.value = "$fYear-0${fMonth+1}-$fDay"
+            if (fMonth + 1 <= 10) {
+                formattedDateState.value = "$fYear-0${fMonth + 1}-$fDay"
             } else {
-                formattedDateState.value = "$fYear-${fMonth+1}-$fDay"
+                formattedDateState.value = "$fYear-${fMonth + 1}-$fDay"
             }
         },
         mYear,
@@ -111,51 +112,41 @@ fun ShowDatePicker(formattedDateState: MutableState<String>) {
         mDay
     )
 
-    Button(onClick = {
-        datePickerDialog.show()
-    }) {
-        Text(text = "Open Date Picker", color = Color.White)
+    Column(
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Button(onClick = {
+            datePickerDialog.show()
+        }) {
+            Text(text = "Choose Date", color = Color.White)
+        }
+
+        Text(text = "Date chosen: ${formattedDateState.value}")
     }
-    // Displaying the mDate value in the Text
-    Text(
-        text = "Selected Date: ${formattedDateState.value}",
-        fontSize = 30.sp,
-        textAlign = TextAlign.Center
-    )
+}
+
+fun calculateDaysLeft(futureDate: String, daysInput: MutableState<String>, incorrectDate: MutableState<Boolean>) {
+    val currentDay = LocalDate.now()
+    val parsedFutureDate = LocalDate.parse(futureDate)
+    daysDiff = currentDay.until(parsedFutureDate, ChronoUnit.DAYS).toInt()
+    if (daysDiff <= 0) {
+        incorrectDate.value = true
+    }
+    else {
+        daysInput.value = daysDiff.toString()
+    }
 }
 
 @Composable
-fun ShowTimePicker() {
-    val mContext = LocalContext.current
-    val mCalendar = Calendar.getInstance()
-    val mHour = mCalendar[Calendar.HOUR_OF_DAY]
-    val mMinute = mCalendar[Calendar.MINUTE]
-
-    val formattedTimeState = remember { mutableStateOf("") }
-
-    val mTimePickerDialog = TimePickerDialog(
-        mContext,
-        { _, fHour: Int, fMinute: Int ->
-            formattedTimeState.value = "$fHour:$fMinute"
-        }, mHour, mMinute, true
+fun SimpleAlertDialog(incorrectDate: MutableState<Boolean>) {
+    AlertDialog(
+        onDismissRequest = { incorrectDate.value = false},
+        confirmButton = {
+            TextButton(onClick = {incorrectDate.value = false})
+            { Text(text = "OK") }
+        },
+        title = { Text(text = "Incorrect Date") },
+        text = { Text(text = "Please select a date in the FUTURE!") }
     )
-    val timeState = remember { mutableStateOf(IntArray(2)) }
-    timeState.value[0] = mHour
-    timeState.value[1] = mMinute
-
-    Button(onClick = { mTimePickerDialog.show() }) {
-        Text(text = "Open Time Picker", color = Color.White)
-    }
-
-    Text(text = "Selected Time: ${formattedTimeState.value}", fontSize = 30.sp)
-}
-
-fun calculateDaysLeft(futureDate: String, daysInput: MutableState<String>) {
-    val currentDay = LocalDate.now()
-    val parsedFutureDate = LocalDate.parse(futureDate)
-    println(currentDay)
-    println(parsedFutureDate)
-    daysDiff = currentDay.until(parsedFutureDate, ChronoUnit.DAYS).toInt()
-    println(daysDiff)
-    daysInput.value = daysDiff.toString()
 }
